@@ -1,15 +1,19 @@
 DATA:
   in_dir: /home/kwlee/Projects_gflas/Team_BI/Projects/1.Knockout_project/Data/Finalsets/Data
+  bert_config: /home/kwlee/Projects_gflas/Team_BI/Projects/DACO/DNABERT/pretrained/6-new-12w-0/config.json
+  fine_tune_bert: /home/kwlee/Projects_gflas/Team_BI/Projects/DACO/DNABERT/pretrained/6-new-12w-0/pytorch_model.bin #fine tune 버전으로 수정 필요
+  
+  embd_mat: /home/kwlee/Projects_gflas/Team_BI/Projects/DACO/DNABERT/prediction/test/pred_results.npy
 
-  cas9_wt_kim: Cas9_wt_kim_parsing.pkl
-  cas9_wt_wang: Cas9_wt_wang_parsing.pkl
-  cas9_wt_xiang: Cas9_wt_xiang_parsing.pkl
-  cas9_hf_wang: Cas9_HF1_wang_parsing.pkl
-  cas9_esp_wang: Cas9_esp_wang_parsing.pkl
-  cas9_hct116_hart: Cas9_hct116_hart_parsing.pkl
-  cas9_hl60_wang: Cas9_hl60_wang_parsing.pkl
-  cas9_hek293t_doench: Cas9_hek293t_doench_parsing.pkl
-  cas9_hela_hart: Cas9_hela_hart_parsing.pkl
+  cas9_wt_kim: Cas9_wt_kim_parsing_embd.pkl
+  cas9_wt_wang: Cas9_wt_wang_parsing_embd.pkl
+  cas9_wt_xiang: Cas9_wt_xiang_parsing_embd.pkl
+  cas9_hf_wang: Cas9_HF1_wang_parsing_embd.pkl
+  cas9_esp_wang: Cas9_esp_wang_parsing_embd.pkl
+  cas9_hct116_hart: Cas9_hct116_hart_parsing_embd.pkl
+  cas9_hl60_wang: Cas9_hl60_wang_parsing_embd.pkl
+  cas9_hek293t_doench: Cas9_hek293t_doench_parsing_embd.pkl
+  cas9_hela_hart: Cas9_hela_hart_parsing_embd.pkl
   #cas12_wt_kim: Cas12a_wt_kim.tsv
 
   seed: 7

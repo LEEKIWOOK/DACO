@@ -1,10 +1,6 @@
 import os
-import time
-import warnings
-import sys
 from scipy.stats import spearmanr, pearsonr
 import numpy as np
-import matplotlib.pyplot as plt
 
 import torch
 import torch.nn as nn
@@ -20,9 +16,9 @@ class Train:
         self.optimizers = Runner.optimizers
         self.scheduler = Runner.scheduler
         self.earlystop = Runner.earlystop
-        # self.ema = Runner.ema
 
-        self.criterion = nn.MSELoss(reduction="mean")
+        self.criterion_reg = nn.MSELoss(reduction="mean")
+        self.criterion_cls = nn.CrossEntropyLoss()
         self.EPOCH = Runner.EPOCH
         self.batch_size = Runner.batch_size
 
@@ -42,11 +38,6 @@ class Train:
         )
         avg_train_losses = []
         avg_valid_losses = []
-
-        # for param in self.framework.parameters():
-        #     param.required_grad = False
-        # for param in self.framework.predictor.parameters():
-        #     param.required_grad = True
 
         for epoch in range(self.EPOCH):
 
@@ -72,6 +63,14 @@ class Train:
         print(f"Spearman Correlation.\t{corrs}")
         print(f"Pearson Correlation.\t{corrp}")
 
+    def to_cls(seklf, x):
+        ret = x
+        ret[np.where(x>=0.75)] = 1
+        ret[np.where(x<0.25)] = 0
+        ret[np.where((x>=0.25) & (x < 0.75))] = 2
+        ret = ret.to(torch.long)
+        return ret
+
     def train(self, epoch):
 
         train_losses = list()
@@ -80,23 +79,23 @@ class Train:
         for i in range(len(self.train_target_iter)):
             self.optimizers.zero_grad()
 
-            X, y = next(self.train_target_iter)
-            X = X.to(self.device)
-            y = y.to(self.device)
+            E, y = next(self.train_target_iter)
+            E = E.to(self.device)
+            y = y.to(self.device)    
 
-            outputs = self.framework(X)
-            loss = self.criterion(outputs, y)
-            loss.backward()  #
+            oreg = self.framework(E)
+            loss = self.criterion_reg(oreg, y)
+            loss.backward()
 
             self.optimizers.step()
 
-            eval["predicted_value"] += outputs.cpu().detach().numpy().tolist()
+            eval["predicted_value"] += oreg.cpu().detach().numpy().tolist()
             eval["real_value"] += y.cpu().detach().numpy().tolist()
             train_losses.append(loss.item())
 
             if i == 0:
                 print(
-                    f"Training step : Epoch : [{epoch}/{self.EPOCH}] [{i}/{len(self.train_target_iter)}], Loss : {loss}, Learning rate : {self.optimizers.param_groups[0]['lr']}"
+                    f"Training step : Epoch : [{epoch}/{self.EPOCH}] [{i}/{len(self.train_target_iter)}], Loss_reg : {loss}"
                 )
 
         corrs = spearmanr(eval["real_value"], eval["predicted_value"])[0]
@@ -110,19 +109,20 @@ class Train:
         with torch.no_grad():
             for i in range(len(self.val_target_iter)):
 
-                X, y = next(self.val_target_iter)
-                X = X.to(self.device)
+                E, y = next(self.val_target_iter)
+                E = E.to(self.device)
                 y = y.to(self.device)
 
-                outputs = self.framework(X)
-                loss = self.criterion(outputs, y)
-                eval["predicted_value"] += outputs.cpu().detach().numpy().tolist()
+                oreg = self.framework(E)
+                loss = self.criterion_reg(oreg, y)
+                
+                eval["predicted_value"] += oreg.cpu().detach().numpy().tolist()
                 eval["real_value"] += y.cpu().detach().numpy().tolist()
                 valid_losses.append(loss.item())
 
                 if i == 0:
                     print(
-                        f"Validation step : Epoch : [{epoch}/{self.EPOCH}] [{i}/{len(self.val_target_iter)}], Loss : {loss}"
+                        f"Validation step : Epoch : [{epoch}/{self.EPOCH}] [{i}/{len(self.train_target_iter)}], Loss_reg : {loss}"
                     )
         corrs = spearmanr(eval["real_value"], eval["predicted_value"])[0]
         print(f"Validation Spearman correlation = {corrs}")
@@ -134,12 +134,15 @@ class Train:
         self.framework.eval()
         with torch.no_grad():
             for i in range(len(self.test_target_iter)):
-                X, y = next(self.test_target_iter)
-                X = X.to(self.device)
+                
+                E, y = next(self.test_target_iter)
+
+                E = E.to(self.device)
                 y = y.to(self.device)
 
-                outputs = self.framework(X)
-                eval["predicted_value"] += outputs.cpu().detach().numpy().tolist()
+                oreg = self.framework(E)
+
+                eval["predicted_value"] += oreg.cpu().detach().numpy().tolist()
                 eval["real_value"] += y.cpu().detach().numpy().tolist()
 
         corrs = spearmanr(eval["real_value"], eval["predicted_value"])[0]

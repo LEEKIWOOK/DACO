@@ -8,5 +8,5 @@ MODEL:
   optimizer_lr: 1e-3
   weight_decay: 0.95 #0.95
   batch: 256
-  epoch: 500 #wang -> 500
+  epoch: 1000 #wang -> 500
   earlystop: 20

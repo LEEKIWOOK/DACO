@@ -28,8 +28,9 @@ class Runner:
 
         self.train_ratio = float(args.ratio)
         self.set_num = int(args.set)
+        self.target_data = int(args.target)
 
-        self.out_dir = f"{config['DATA']['out_dir']}/ratio_{self.train_ratio}/set{self.set_num}/"
+        self.out_dir = f"{config['DATA']['out_dir']}/data_{self.target_data}/set{self.set_num}/"
         os.makedirs(self.out_dir, exist_ok=True)
         self.data_config = config["DATA"]["data_config"]
         self.earlystop = int(config["MODEL"]["earlystop"])

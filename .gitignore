@@ -1,7 +1,9 @@
 .idea
+.git
 .vscode
 .gitignore
 __pycache__/
 output
 tools
 temp
+workspace.code-workspace

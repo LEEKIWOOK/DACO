@@ -1,2 +1,2 @@
 # DACO
-Cross cell type prediction of crispr on-target efficiency
+BERT based crispr on-target efficiency prediction

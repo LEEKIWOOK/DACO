@@ -1,5 +1,8 @@
-./DNABERT
-./dna2vec
-./output
-./venv
-./workspace.code-workspace
+/.idea
+/.vscode
+/DNABERT
+/dna2vec
+/output
+/venv
+/workspace.code-workspace
+/.gitignore

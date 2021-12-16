@@ -13,9 +13,14 @@ from cosine_annealing_warmup import CosineAnnealingWarmupRestarts
 import torch
 import torch.optim as optim
 
-from data.data_manager import DataManager
+from data.data_manager_w2v import DataManager
+#from data.data_manager_bert import DataManager
+#from data.data_manager import DataManager
 
-from modeling.model import MHSA_CNN
+from modeling.model import Predictor
+#from modeling.model3 import Predictor
+#from modeling.model_encoding import CNN_GRU_ENC
+#from modeling.model_embedding import CNN_GRU_EMBD 
 from engine.train import Train
 from utils import *
 
@@ -30,7 +35,8 @@ class Runner:
         self.set_num = int(args.set)
         self.target_data = int(args.target)
 
-        self.out_dir = f"{config['DATA']['out_dir']}/data_{self.target_data}/set{self.set_num}/"
+        self.out_dir = f"{config['DATA']['out_dir']}/word2vec/data_{self.target_data}/set{self.set_num}/"
+        #self.out_dir = f"{config['DATA']['out_dir']}/Cas9BERT-p0.01/data_{self.target_data}/set{self.set_num}/"
         os.makedirs(self.out_dir, exist_ok=True)
         self.data_config = config["DATA"]["data_config"]
         self.earlystop = int(config["MODEL"]["earlystop"])
@@ -41,9 +47,9 @@ class Runner:
     def save_dict(self, data, filename):
         outfile = self.out_dir + filename + ".csv"
         df = list()
-        for idx in range(len(data["X"])):
-            df.append(["".join(data["X"][idx]), data["Y"][idx], data["E"][idx]])
-        df = pd.DataFrame(df, columns=["X", "Y", "E"])
+        for idx in range(len(data["Y"])):
+            df.append([''.join(data["X"][idx]), data["Y"][idx]])
+        df = pd.DataFrame(df, columns=["X", "Y"])
         df.to_csv(outfile, sep="\t", index=False, header=False)
         print(f"Saved {filename} data ...")
 
@@ -52,20 +58,17 @@ class Runner:
         DM = DataManager(self.batch_size, self.data_config, args)
         ret1, ret2, ret3 = DM.target_load()
 
-        #self.save_dict(ret1, "train")
-        #self.save_dict(ret2, "valid")
-        #self.save_dict(ret3, "test")
+        self.save_dict(ret1, "train")
+        self.save_dict(ret2, "valid")
+        self.save_dict(ret3, "test")
 
         self.train_loader = DM.data_loader(ret1)
         self.val_loader = DM.data_loader(ret2)
         self.test_loader = DM.data_loader(ret3)
 
-        return DM.seqlen
-
-    def init_model(self, len):
-        # Create model
-        self.framework = MHSA_CNN(len).to(self.device)
-
+    def init_model(self):
+        
+        self.framework = Predictor(input_channel = 100).to(self.device)
         self.optimizers = optim.SGD(
             self.framework.parameters(), lr=1e-2, momentum=0.9, weight_decay=1e-4
         )
@@ -101,8 +104,8 @@ if __name__ == "__main__":
     runner = Runner(args)
     logger = CompleteLogger(runner.out_dir)
 
-    seqlen = runner.dataload(args)
-    runner.init_model(seqlen)
+    runner.dataload(args)
+    runner.init_model()
 
     runner.train_model(logger)
     end = time.time()

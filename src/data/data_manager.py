@@ -25,7 +25,7 @@ class DataManager:
             "cas9_hela_hart",  # 0.35
         ]
         self.domain_file = [
-            f"{data_cfg['in_dir']}/{data_cfg[x]}" for x in self.domain_list
+            f"{data_cfg['dir']}/{data_cfg['Cas9BERT_input']}/{data_cfg[x]}" for x in self.domain_list
         ]
         self.target_domain = self.domain_list[args.target]
         self.target_file = self.domain_file[args.target]
@@ -69,17 +69,17 @@ class DataManager:
         )
 
         train_set = {
-            #"X": [data["X"][i] for i in indices["Train"]],
+            "X": [data["X"][i] for i in indices["Train"]],
             "E": [data["E"][i] for i in indices["Train"]],
             "Y": [data["Y"][i] for i in indices["Train"]],
         }
         test_set = {
-            #"X": [data["X"][i] for i in indices["Test"]],
+            "X": [data["X"][i] for i in indices["Test"]],
             "E": [data["E"][i] for i in indices["Test"]],
             "Y": [data["Y"][i] for i in indices["Test"]],
         }
         valid_set = {
-            #"X": [data["X"][i] for i in indices["Val"]],
+            "X": [data["X"][i] for i in indices["Val"]],
             "E": [data["E"][i] for i in indices["Val"]],
             "Y": [data["Y"][i] for i in indices["Val"]],
         }

@@ -1,103 +1,221 @@
-import math
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from modeling.utils import PositionalEncoding, Flattening
 
+drop_rate = 0.4 #<-0.3
 
-class MHSA_CNN(nn.Module):
-    def __init__(self, len: int):
-        super(MHSA_CNN, self).__init__()
+def conv3x3(in_planes, out_planes, stride=1):
+    return nn.Conv1d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False)
 
-        self.dropout_rate = 0.2
-        self.rnn_hidden = 3 ### -> 3?
+def conv5x5(in_planes, out_planes, stride=1):
+    return nn.Conv1d(in_planes, out_planes, kernel_size=5, stride=stride, padding=1, bias=False)
 
-        self.maxpool = nn.MaxPool1d(kernel_size=3, stride=2)
-        self.gru = nn.GRU(30, self.rnn_hidden, bidirectional=True)
+def conv7x7(in_planes, out_planes, stride=1):
+    return nn.Conv1d(in_planes, out_planes, kernel_size=7, stride=stride, padding=1, bias=False)
+
+class Flattening(nn.Module):
+    def __init__(self):
+        super(Flattening, self).__init__()
+    
+    def forward(self, x): 
+        return torch.flatten(x, 1)
+
+class BasicBlock3x3(nn.Module):
+    expansion = 1
+    def __init__(self, inplanes3, planes, stride=1, downsample=None):
+        super(BasicBlock3x3, self).__init__()
+        
+        self.conv_bn = nn.Sequential(
+            conv3x3(inplanes3, planes, stride),
+            nn.BatchNorm1d(planes),
+            nn.ReLU(inplace=True),
+            nn.Dropout(drop_rate),
+            conv3x3(planes, planes),
+            nn.BatchNorm1d(planes),
+            nn.ReLU(inplace=True),
+            nn.Dropout(drop_rate),
+        )
+        self.relu = nn.ReLU(inplace=True)
+        self.downsample = downsample
+        self.stride = stride
+
+    def forward(self, x):
+        residual = x
+        out = self.conv_bn(x)
+        if self.downsample is not None:
+            residual = self.downsample(x)
+
+        out += residual
+        out = self.relu(out)
+        return out
+
+class BasicBlock5x5(nn.Module):
+    expansion = 1
+
+    def __init__(self, inplanes5, planes, stride=1, downsample=None):
+        super(BasicBlock5x5, self).__init__()
+
+        self.conv_bn = nn.Sequential(
+            conv5x5(inplanes5, planes, stride),
+            nn.BatchNorm1d(planes),
+            nn.ReLU(inplace=True),
+            nn.Dropout(drop_rate),
+            conv5x5(planes, planes),
+            nn.BatchNorm1d(planes),
+            nn.ReLU(inplace=True),
+            nn.Dropout(drop_rate),
+        )
+        self.relu = nn.ReLU(inplace=True)
+        self.downsample = downsample
+        self.stride = stride
+
+    def forward(self, x):
+        residual = x
+        out = self.conv_bn(x)
+        if self.downsample is not None:
+            residual = self.downsample(x)
+
+        d = residual.shape[2] - out.shape[2]
+        out1 = residual[:,:,0:-d] + out
+        out1 = self.relu(out1)
+        return out1
+
+class BasicBlock7x7(nn.Module):
+    expansion = 1
+
+    def __init__(self, inplanes7, planes, stride=1, downsample=None):
+        super(BasicBlock7x7, self).__init__()
+        
+        self.conv_bn = nn.Sequential(
+            conv7x7(inplanes7, planes, stride),
+            nn.BatchNorm1d(planes),
+            nn.ReLU(inplace=True),
+            nn.Dropout(drop_rate),
+            conv7x7(planes, planes),
+            nn.BatchNorm1d(planes),
+            nn.ReLU(inplace=True),
+            nn.Dropout(drop_rate),
+        )
+        self.relu = nn.ReLU(inplace=True)
+        self.downsample = downsample
+        self.stride = stride
+
+    def forward(self, x):
+        residual = x
+        out = self.conv_bn(x)
+        if self.downsample is not None:
+            residual = self.downsample(x)
+
+        d = residual.shape[2] - out.shape[2]
+        out1 = residual[:, :, 0:-d] + out
+        out1 = self.relu(out1)
+        return out1
+
+class Predictor(nn.Module):
+    def __init__(self, input_channel, layers=[1, 1, 1, 1]):
+        super(Predictor, self).__init__()
+        self.inplanes3 = 128
+        self.inplanes5 = 128
+        self.inplanes7 = 128
+
+        self.pre_conv = nn.Sequential(
+            nn.Conv1d(input_channel, 128, kernel_size=7, stride=2, padding=3, bias=False),
+            nn.BatchNorm1d(128),
+            nn.ReLU(inplace=True),
+            nn.Dropout(drop_rate),
+        )
+
+        self.layer3x3_1 = self._make_layer3(BasicBlock3x3, 64, layers[0], stride=2)
+        self.maxpool3 = nn.AvgPool1d(kernel_size=3, stride=1, padding=0)
+
+        self.layer5x5_1 = self._make_layer5(BasicBlock5x5, 64, layers[0], stride=2)
+        self.maxpool5 = nn.AvgPool1d(kernel_size=3, stride=1, padding=0)
+
+        self.layer7x7_1 = self._make_layer7(BasicBlock7x7, 64, layers[0], stride=2)
+
         self.flattening = Flattening()
-        self.dropout = nn.Dropout(self.dropout_rate)
-
-        ##########################################################################
-
-        self.ConvLayer_embd = nn.Sequential(
-            nn.Conv1d(768, 128, kernel_size=3, padding="same", stride=1, bias=False),
+        self.fc = nn.Sequential(
+            nn.Linear(704, 128),
             nn.BatchNorm1d(128),
             nn.ReLU(),
-            nn.Dropout(self.dropout_rate),
-            nn.Conv1d(128, 64, kernel_size=3, padding="same", stride=1, bias=False),
-            nn.BatchNorm1d(64),
-            nn.ReLU(),
-            nn.Dropout(self.dropout_rate),
-        )
-
-        self.predictor = nn.Sequential(
-            nn.Linear(in_features=128, out_features=32),
+            nn.Dropout(drop_rate),
+            nn.Linear(128, 32),
             nn.BatchNorm1d(32),
             nn.ReLU(),
-            nn.Dropout(self.dropout_rate),
-            nn.Linear(in_features=32, out_features=1),
+            nn.Dropout(drop_rate),
+            nn.Linear(32, 1)
         )
 
-        self.initialize_weights()
-    
-    def initialize_weights(self):
-        # track all layers
-        for m in self.modules():
-            if isinstance(m, nn.Conv1d):
-                nn.init.kaiming_uniform_(m.weight)
-                if m.bias is not None:
-                    nn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.BatchNorm1d):
-                nn.init.constant_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.Linear):
-                nn.init.kaiming_uniform_(m.weight)
-                nn.init.constant_(m.bias, 0)
-    
-    def forward(self, embd_matrix):
+    def _make_layer3(self, block, planes, blocks, stride=2):
+        downsample = None
+        if stride != 1 or self.inplanes3 != planes * block.expansion:
+            downsample = nn.Sequential(
+                nn.Conv1d(self.inplanes3, planes * block.expansion,
+                          kernel_size=1, stride=stride, bias=False),
+                nn.BatchNorm1d(planes * block.expansion),
+                nn.ReLU(),
+                nn.Dropout(drop_rate),
+            )
 
-        #2. embd_matrix
-        reg_out = embd_matrix.transpose(1, 2)
-        reg_out = self.ConvLayer_embd(reg_out)
+        layers = []
+        layers.append(block(self.inplanes3, planes, stride, downsample))
+        self.inplanes3 = planes * block.expansion
+        for i in range(1, blocks):
+            layers.append(block(self.inplanes3, planes))
 
-        reg_out, _ = self.gru(reg_out)
-        F_RNN = reg_out[:, :, : self.rnn_hidden]
-        R_RNN = reg_out[:, :, self.rnn_hidden :]
-        reg_out = self.dropout(torch.cat((F_RNN, R_RNN), 2))
+        return nn.Sequential(*layers)
+
+    def _make_layer5(self, block, planes, blocks, stride=2):
+        downsample = None
+        if stride != 1 or self.inplanes5 != planes * block.expansion:
+            downsample = nn.Sequential(
+                nn.Conv1d(self.inplanes5, planes * block.expansion,
+                          kernel_size=1, stride=stride, bias=False),
+                nn.BatchNorm1d(planes * block.expansion),
+                nn.ReLU(),
+                nn.Dropout(drop_rate),
+            )
+
+        layers = []
+        layers.append(block(self.inplanes5, planes, stride, downsample))
+        self.inplanes5 = planes * block.expansion
+        for i in range(1, blocks):
+            layers.append(block(self.inplanes5, planes))
+
+        return nn.Sequential(*layers)
+
+
+    def _make_layer7(self, block, planes, blocks, stride=2):
+        downsample = None
+        if stride != 1 or self.inplanes7 != planes * block.expansion:
+            downsample = nn.Sequential(
+                nn.Conv1d(self.inplanes7, planes * block.expansion,
+                          kernel_size=1, stride=stride, bias=False),
+                nn.BatchNorm1d(planes * block.expansion),
+                nn.ReLU(),
+                nn.Dropout(drop_rate),
+            )
+
+        layers = []
+        layers.append(block(self.inplanes7, planes, stride, downsample))
+        self.inplanes7 = planes * block.expansion
+        for i in range(1, blocks):
+            layers.append(block(self.inplanes7, planes))
+
+        return nn.Sequential(*layers)
+
+    def forward(self, e):
         
-        reg_out = self.maxpool(reg_out)
-        reg_out = self.flattening(reg_out) #256, 1023
-        #print(reg_out.shape)
-        reg_out = self.predictor(reg_out)
+        x0 = self.pre_conv(e)
 
-        return reg_out.squeeze()
+        x = self.layer3x3_1(x0)
+        x = self.maxpool3(x)
 
-        """
-            Case 1. 
-                (1)PE + Conv + FClayer
-                (2)Kmer_embd + Conv + FClayer
-                => epoch 40, corr : 0.4813269400504535
-            Case 2.
-                (1)reg : Multi-head attention
-                (2)cls: Conv + gru + (reg) + FClayer
-                => epoch 50, corr : 0.5083472740061205
-            Case 3.
-                (1)reg : Conv + Multi-head attention
-                (2)cls: Conv + (reg) + FClayer
-                => epoch 25, corr : 0.45469856093707905
-            Case 4.
-                (1)reg : Conv - embd matrix : 0.828542092506067 (epoch 500)
-            Case 5.
-                (1)reg : Conv - one hot encoding : 0.8097524308625214 (epoch 500)
-            Case 6.
-                (1)reg : Conv - embedding : 0.7057128779264171 (epoch 500)
-            Case 7.
-                (1)reg : Conv - embedding + GRU : 0.8288423534381729 (epoch 246)
-            Case 8.
-                (1)reg : Conv - embd matrix + mhsa + GRU  : 0.8061655301084629 (epoch 405)
-            Case 9.
-                (1)reg : embd matrix(pos) + mhsa + GRU  : 0
-            Case 7 - 2 (GRU parameter tuning).
-                (1)reg : Conv - embedding + GRU : 0.832914779724453
+        y = self.layer5x5_1(x0)
+        y = self.maxpool5(y)
 
-        """
+        z = self.layer7x7_1(x0)
+
+        out = torch.cat([x, y, z], dim=2)
+        out = self.flattening(out)
+        out = self.fc(out)
+        return out.squeeze()

@@ -25,16 +25,16 @@ class DataManager:
             "cas9_hela_hart",  # 0.35
         ]
         self.domain_file = [
-            f"{data_cfg['in_dir']}/{data_cfg[x]}" for x in self.domain_list
+            f"{data_cfg['dir']}/{data_cfg['raw_input']}/{data_cfg[x]}" for x in self.domain_list
         ]
         self.target_domain = self.domain_list[args.target]
         self.target_file = self.domain_file[args.target]
         fn, fe = os.path.splitext(self.target_file)
-        self.out_file = f'{fn}_embd{fe}'
+        self.out_file = f'{fn}_Cas9BERT_v2_p001{fe}'
         
-        embd_config = BertConfig.from_pretrained(f"{data_cfg['bert_config']}")
+        embd_config = BertConfig.from_pretrained(f"{data_cfg['dir']}/{data_cfg['Cas9BERT_config']}")
         self.tokenizer = DNATokenizer.from_pretrained('dna6')
-        self.embd_model = BertModel.from_pretrained(f"{data_cfg['fine_tune_bert']}", config = embd_config)
+        self.embd_model = BertModel.from_pretrained(f"{data_cfg['dir']}/{data_cfg['Cas9BERT_model']}", config = embd_config)
 
     def kmer_Seq(self, seq):
         k = 6
@@ -58,7 +58,8 @@ class DataManager:
             model_input = torch.tensor(model_input, dtype=torch.long)
             output = self.embd_model(model_input)
         
-        logits = output[0]
+        #logits = output[0] #the last layer activations for each token, or, a matrix of shape (N, 768
+        logits = output[1] #the whole sequence embedding (activations for [CLS] token AFAIK), or a matrix of shape (1, 768)
         logits = logits.detach().cpu().tolist()
         data['E'] = logits
         

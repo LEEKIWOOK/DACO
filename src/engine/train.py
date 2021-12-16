@@ -1,7 +1,7 @@
 import os
 from scipy.stats import spearmanr, pearsonr
 import numpy as np
-
+import time
 import torch
 import torch.nn as nn
 
@@ -18,7 +18,6 @@ class Train:
         self.earlystop = Runner.earlystop
 
         self.criterion_reg = nn.MSELoss(reduction="mean")
-        self.criterion_cls = nn.CrossEntropyLoss()
         self.EPOCH = Runner.EPOCH
         self.batch_size = Runner.batch_size
 
@@ -40,7 +39,7 @@ class Train:
         avg_valid_losses = []
 
         for epoch in range(self.EPOCH):
-
+            
             train_losses = self.train(epoch)
             valid_losses = self.validate(epoch)
             self.scheduler.step()
@@ -63,40 +62,38 @@ class Train:
         print(f"Spearman Correlation.\t{corrs}")
         print(f"Pearson Correlation.\t{corrp}")
 
-    def to_cls(seklf, x):
-        ret = x
-        ret[np.where(x>=0.75)] = 1
-        ret[np.where(x<0.25)] = 0
-        ret[np.where((x>=0.25) & (x < 0.75))] = 2
-        ret = ret.to(torch.long)
-        return ret
-
     def train(self, epoch):
 
         train_losses = list()
         eval = {"predicted_value": list(), "real_value": list()}
-        self.framework.train()
         for i in range(len(self.train_target_iter)):
+            self.framework.train()            
+            #start = time.time()
             self.optimizers.zero_grad()
-
-            E, y = next(self.train_target_iter)
+            
+            _, E, y = next(self.train_target_iter)
             E = E.to(self.device)
-            y = y.to(self.device)    
+            #with torch.no_grad():
+            #    E = self.bert(E)[0] #.to(self.device)
+            y = y.to(self.device)
+            #end = time.time()
+            #print(f"embedding matrix load : {end - start:.5f} sec")
 
             oreg = self.framework(E)
             loss = self.criterion_reg(oreg, y)
-            loss.backward()
+
+            #start = time.time()
+            loss.backward() #too late
+            #end = time.time()
+            #print(f"loss backward : {end - start:.5f} sec")
 
             self.optimizers.step()
-
             eval["predicted_value"] += oreg.cpu().detach().numpy().tolist()
             eval["real_value"] += y.cpu().detach().numpy().tolist()
             train_losses.append(loss.item())
 
             if i == 0:
-                print(
-                    f"Training step : Epoch : [{epoch}/{self.EPOCH}] [{i}/{len(self.train_target_iter)}], Loss_reg : {loss}"
-                )
+                print(f"Training step : Epoch : [{epoch}/{self.EPOCH}] [{i}/{len(self.train_target_iter)}], Loss_reg : {loss}")
 
         corrs = spearmanr(eval["real_value"], eval["predicted_value"])[0]
         print(f"Training Spearman correlation = {corrs}")
@@ -109,9 +106,11 @@ class Train:
         with torch.no_grad():
             for i in range(len(self.val_target_iter)):
 
-                E, y = next(self.val_target_iter)
+                _, E, y = next(self.val_target_iter)
                 E = E.to(self.device)
                 y = y.to(self.device)
+
+                #E = self.bert(E)[0] #.to(self.device)
 
                 oreg = self.framework(E)
                 loss = self.criterion_reg(oreg, y)
@@ -121,9 +120,8 @@ class Train:
                 valid_losses.append(loss.item())
 
                 if i == 0:
-                    print(
-                        f"Validation step : Epoch : [{epoch}/{self.EPOCH}] [{i}/{len(self.train_target_iter)}], Loss_reg : {loss}"
-                    )
+                    print(f"Validation step : Epoch : [{epoch}/{self.EPOCH}] [{i}/{len(self.train_target_iter)}], Loss_reg : {loss}")
+
         corrs = spearmanr(eval["real_value"], eval["predicted_value"])[0]
         print(f"Validation Spearman correlation = {corrs}")
         return valid_losses
@@ -135,11 +133,11 @@ class Train:
         with torch.no_grad():
             for i in range(len(self.test_target_iter)):
                 
-                E, y = next(self.test_target_iter)
-
+                _, E, y = next(self.test_target_iter)
                 E = E.to(self.device)
                 y = y.to(self.device)
 
+                #E = self.bert(E)[0] #.to(self.device)
                 oreg = self.framework(E)
 
                 eval["predicted_value"] += oreg.cpu().detach().numpy().tolist()

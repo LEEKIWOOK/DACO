@@ -35,7 +35,7 @@ class Runner:
         self.set_num = int(args.set)
         self.target_data = int(args.target)
 
-        self.out_dir = f"{config['DATA']['out_dir']}/word2vec/data_{self.target_data}/set{self.set_num}/"
+        self.out_dir = f"{config['DATA']['out_dir']}/word2vec/kmer{int(args.kmer)}/data_{self.target_data}/set{self.set_num}/"
         #self.out_dir = f"{config['DATA']['out_dir']}/Cas9BERT-p0.01/data_{self.target_data}/set{self.set_num}/"
         os.makedirs(self.out_dir, exist_ok=True)
         self.data_config = config["DATA"]["data_config"]
@@ -97,6 +97,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--set", type=int, help=">1")
     parser.add_argument("--ratio", type=float, help="train ratio", default=1.0)
+    parser.add_argument("--kmer", type=int, help="split sequence to k (3-8)", default=3)
 
     args = parser.parse_args()
 

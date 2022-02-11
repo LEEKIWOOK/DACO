@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-drop_rate = 0.4 #<-0.3
+drop_rate = 0.3
 
 def conv3x3(in_planes, out_planes, stride=1):
     return nn.Conv1d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False)
@@ -135,6 +135,7 @@ class Predictor(nn.Module):
         self.flattening = Flattening()
         self.fc = nn.Sequential(
             nn.Linear(704, 128),
+            #nn.Linear(512, 128),
             nn.BatchNorm1d(128),
             nn.ReLU(),
             nn.Dropout(drop_rate),
@@ -217,5 +218,6 @@ class Predictor(nn.Module):
 
         out = torch.cat([x, y, z], dim=2)
         out = self.flattening(out)
+        #print(out.shape)
         out = self.fc(out)
         return out.squeeze()

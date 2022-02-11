@@ -13,14 +13,8 @@ from cosine_annealing_warmup import CosineAnnealingWarmupRestarts
 import torch
 import torch.optim as optim
 
-from data.data_manager_w2v import DataManager
-#from data.data_manager_bert import DataManager
-#from data.data_manager import DataManager
-
-from modeling.model import Predictor
-#from modeling.model3 import Predictor
-#from modeling.model_encoding import CNN_GRU_ENC
-#from modeling.model_embedding import CNN_GRU_EMBD 
+from data.data_manager_extend import DataManager
+from modeling.model_extend import Predictor
 from engine.train import Train
 from utils import *
 
@@ -34,9 +28,9 @@ class Runner:
         self.train_ratio = float(args.ratio)
         self.set_num = int(args.set)
         self.target_data = int(args.target)
+        #self.kmer = ''.join(args.kmer.split()).replace(",","_")
 
-        self.out_dir = f"{config['DATA']['out_dir']}/word2vec/kmer{int(args.kmer)}/data_{self.target_data}/set{self.set_num}/"
-        #self.out_dir = f"{config['DATA']['out_dir']}/Cas9BERT-p0.01/data_{self.target_data}/set{self.set_num}/"
+        self.out_dir = f"{config['DATA']['out_dir']}/word2vec_extend/kmer_extend/data_{self.target_data}/set{self.set_num}/"
         os.makedirs(self.out_dir, exist_ok=True)
         self.data_config = config["DATA"]["data_config"]
         self.earlystop = int(config["MODEL"]["earlystop"])
@@ -97,7 +91,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--set", type=int, help=">1")
     parser.add_argument("--ratio", type=float, help="train ratio", default=1.0)
-    parser.add_argument("--kmer", type=int, help="split sequence to k (3-8)", default=3)
+    #parser.add_argument("--kmer", type=str, help="split sequence to k (3-8)")
 
     args = parser.parse_args()
 

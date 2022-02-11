@@ -1,7 +1,6 @@
 import os
 from scipy.stats import spearmanr, pearsonr
 import numpy as np
-import time
 import torch
 import torch.nn as nn
 
@@ -71,15 +70,13 @@ class Train:
             #start = time.time()
             self.optimizers.zero_grad()
             
-            _, E, y = next(self.train_target_iter)
-            E = E.to(self.device)
-            #with torch.no_grad():
-            #    E = self.bert(E)[0] #.to(self.device)
+            _, V3,V4,V5, y = next(self.train_target_iter)
+            V3 = V3.to(self.device)
+            V4 = V4.to(self.device)
+            V5 = V5.to(self.device)
             y = y.to(self.device)
-            #end = time.time()
-            #print(f"embedding matrix load : {end - start:.5f} sec")
 
-            oreg = self.framework(E)
+            oreg = self.framework(V3,V4,V5)
             loss = self.criterion_reg(oreg, y)
 
             #start = time.time()
@@ -106,13 +103,13 @@ class Train:
         with torch.no_grad():
             for i in range(len(self.val_target_iter)):
 
-                _, E, y = next(self.val_target_iter)
-                E = E.to(self.device)
+                _, V3,V4,V5, y = next(self.val_target_iter)
+                V3 = V3.to(self.device)
+                V4 = V4.to(self.device)
+                V5 = V5.to(self.device)
                 y = y.to(self.device)
 
-                #E = self.bert(E)[0] #.to(self.device)
-
-                oreg = self.framework(E)
+                oreg = self.framework(V3, V4, V5)
                 loss = self.criterion_reg(oreg, y)
                 
                 eval["predicted_value"] += oreg.cpu().detach().numpy().tolist()
@@ -133,12 +130,12 @@ class Train:
         with torch.no_grad():
             for i in range(len(self.test_target_iter)):
                 
-                _, E, y = next(self.test_target_iter)
-                E = E.to(self.device)
+                _, V3,V4,V5, y = next(self.test_target_iter)
+                V3 = V3.to(self.device)
+                V4 = V4.to(self.device)
+                V5 = V5.to(self.device)
                 y = y.to(self.device)
-
-                #E = self.bert(E)[0] #.to(self.device)
-                oreg = self.framework(E)
+                oreg = self.framework(V3,V4,V5)
 
                 eval["predicted_value"] += oreg.cpu().detach().numpy().tolist()
                 eval["real_value"] += y.cpu().detach().numpy().tolist()

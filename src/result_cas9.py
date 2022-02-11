@@ -1,40 +1,71 @@
 import argparse
 import torch
+import numpy as np
 import pickle
 from scipy.stats import spearmanr, pearsonr
 from torch.utils.data import DataLoader
 
-from modeling.model import CNN_GRU_BERT
-from modeling.model_encoding import CNN_GRU_ENC
-from modeling.model_embedding import CNN_GRU_EMBD
-
-from data.data_manager import DataWrapper
+from data.multi_k_model import MultiKModel
+from modeling.model import Predictor
 from utils.iterator import ForeverDataIterator
 
-batch_size = 256
-device = "cpu"
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+class DataWrapper:
+    def __init__(self, data, transform=None):
+        self.data = data
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.data["Y"])
+
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.to_list()
+
+        res = dict()
+        for col in self.data.keys():
+            res[col] = torch.tensor(self.data[col][idx], dtype=torch.float)
+        return res
 
 class DataManager:
-    def __init__(self, batch_size):
+    def __init__(self, batch_size, kmer):
 
         self.batch_size = batch_size
-        self.seqlen = 33
+        self.kmer = kmer
+        self.dna2vec_path = "./data/word2vec/dna2vec.w2v"
+        self.DNA2Vec = MultiKModel(self.dna2vec_path)
 
-    def data_set(self, file):
+    def k_mer_stride(self, seq, k, s):
+        l = []
+        j = 0
+        for i in range(len(seq)):
+            t = seq[j:j + k]
+            if (len(t)) == k:
+                vec = self.DNA2Vec.vector(t)
+                l.append(vec)
+            j += s
+        return l
+
+    def target_load(self, file):
 
         data = pickle.load(open(file, "rb"))
+        data["E"] = [np.array(self.k_mer_stride(''.join(data['X'][i]), self.kmer, 1)).T for i in range(len(data['X']))]
+
         minY = min(data["Y"])
         maxY = max(data["Y"])
         data["Y"] = [(i - minY) / (maxY - minY) for i in data["Y"]]
+        data.pop('R', None)
+        data.pop('X', None)
 
         return data
 
-    def loader_only(self, data):
+    def data_loader(self, data):
 
         loader = DataLoader(
             DataWrapper(data),
-            batch_size=batch_size,
-            num_workers=2,
+            batch_size=self.batch_size,
+            num_workers=8,
             drop_last=True,
         )
         return loader
@@ -47,11 +78,11 @@ def test(data):
     model.eval()
     with torch.no_grad():
         for i in range(len(data)):
-            X, y, _ = next(data)
-            X = X.to(device)
+            y, E = next(data)
+            E = E.to(device)
             y = y.to(device)
 
-            outputs = model(X)
+            outputs = model(E)
             eval["predicted_value"] += outputs.cpu().detach().numpy().tolist()
             eval["real_value"] += y.cpu().detach().numpy().tolist()
 
@@ -62,31 +93,24 @@ def test(data):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--model", type=int, help="target domain")
     parser.add_argument("--set", type=int, help="model set number.")
+    parser.add_argument("--test", type=int, help="test data")
     args = parser.parse_args()
 
-    #test_file = f"/home/kwlee/Projects_gflas/Team_BI/Projects/1.Knockout_project/Data/Finalsets/Data/Cas9_wt_kim_parsing_embd.pkl"
-    test_file = f"/home/kwlee/Projects_gflas/Team_BI/Projects/1.Knockout_project/Data/Finalsets/Data/Cas9_wt_xiang_parsing_embd.pkl"
-    #test_file = f"/home/kwlee/Projects_gflas/Team_BI/Projects/1.Knockout_project/Data/Finalsets/Data/Cas9_hct116_hart_parsing_embd.pkl"
-    #test_file = f"/home/kwlee/Projects_gflas/Team_BI/Projects/1.Knockout_project/Data/Finalsets/Data/Cas9_hl60_wang_parsing_embd.pkl"
-    #test_file = f"/home/kwlee/Projects_gflas/Team_BI/Projects/1.Knockout_project/Data/Finalsets/Data/Cas9_hek293t_doench_parsing_embd.pkl"
-    #test_file = f"/home/kwlee/Projects_gflas/Team_BI/Projects/1.Knockout_project/Data/Finalsets/Data/Cas9_hela_hart_parsing_embd.pkl"
-    DM = DataManager(batch_size)
-    test_data = ForeverDataIterator(DM.loader_only(DM.data_set(test_file)))
+    test_list = ["wt_kim", "wt_wang", "wt_xiang", "HF1_wang", "esp_wang", "hct116_hart", "hl60_wang", "hela_hart"]
+    test_file = f"./data/input/Raw/Cas9_{test_list[args.test]}.pkl"
 
+    model_path = f"./output/word2vec_extend/kmer_extend/data_{args.model}/set{args.set}/checkpoints/latest_net.pth"
+    model = Predictor(input_channel = 100).to(device)
+    model.load_state_dict(torch.load(model_path))
 
-    #weight_path = f"/home/kwlee/Projects_gflas/Team_BI/Projects/DACO/output/DNABERT-org/data_1/set{args.set}/checkpoints/latest_net.pth"
-    #model = CNN_GRU_BERT(len=30).to(device)
-    #weight_path = f"/home/kwlee/Projects_gflas/Team_BI/Projects/DACO/output/onehot/data_1/set{args.set}/checkpoints/latest_net.pth"
-    #model = CNN_GRU_ENC(len=33).to(device)
-    weight_path = f"/home/kwlee/Projects_gflas/Team_BI/Projects/DACO/output/embedding/data_1/set{args.set}/checkpoints/latest_net.pth"
-    model = CNN_GRU_EMBD(len=33).to(device)
+    DM = DataManager(batch_size=512, kmer = 5)
+    test_data = ForeverDataIterator(DM.data_loader(DM.target_load(test_file)))
     
-
-    model.load_state_dict(torch.load(weight_path))
     corrs, corrp = test(test_data)
     
     print(test_file)
-    print(weight_path)
+    print(model_path)
     print(f"Spearman Correlation.\t{corrs}")
     print(f"Pearson Correlation.\t{corrp}")

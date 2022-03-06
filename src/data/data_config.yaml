@@ -1,24 +1,21 @@
 DATA:
-  dir: /home/kwlee/Projects_gflas/Team_BI/Projects/DACO/data
-  raw_input: input/Raw
-  DNABERT_input: input/DNABERT
-  Cas9BERT_input: input/Cas9BERT
+  dir: /home/kwlee/Projects_gflas/DACO
+  raw_input: data/input/Raw
+  # DNABERT_input: input/DNABERT
+  # Cas9BERT_input: input/Cas9BERT
 
-  DNABERT_config: bert/DNABERT/config.json
-  DNABERT_model: bert/DNABERT/pytorch_model.bin
-  Cas9BERT_config: bert/Cas9BERT_p010/config.json
-  Cas9BERT_model: bert/Cas9BERT_p010/pytorch_model.bin
-  w2v_model: word2vec/dna2vec.w2v
+  # DNABERT_config: bert/DNABERT/config.json
+  # DNABERT_model: bert/DNABERT/pytorch_model.bin
+  # Cas9BERT_config: bert/Cas9BERT_p010/config.json
+  # Cas9BERT_model: bert/Cas9BERT_p010/pytorch_model.bin
+  w2v_model: data/word2vec/dna2vec.w2v
 
   cas9_wt_kim: Cas9_wt_kim.pkl #_DNABERT / _Cas9BERT_p001
   cas9_wt_wang: Cas9_wt_wang.pkl
   cas9_wt_xiang: Cas9_wt_xiang.pkl
   cas9_hf_wang: Cas9_HF1_wang.pkl
   cas9_esp_wang: Cas9_esp_wang.pkl
-  cas9_hct116_hart: Cas9_hct116_hart.pkl
-  cas9_hl60_wang: Cas9_hl60_wang.pkl
-  cas9_hek293t_doench: Cas9_hek293t_doench.pkl
-  cas9_hela_hart: Cas9_hela_hart.pkl
+  cas12a_wt_kim: Cas12a_wt_kim.pkl
 
   # cas9_wt_kim_b: Cas9_wt_kim_Cas9BERT_p001.pkl #_DNABERT / _Cas9BERT_p001
   # cas9_wt_wang_b: Cas9_wt_wang_Cas9BERT_p001.pkl

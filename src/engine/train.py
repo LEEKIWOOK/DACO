@@ -70,13 +70,12 @@ class Train:
             #start = time.time()
             self.optimizers.zero_grad()
             
-            _, V3,V4,V5, y = next(self.train_target_iter)
-            V3 = V3.to(self.device)
-            V4 = V4.to(self.device)
-            V5 = V5.to(self.device)
+            X, E, y = next(self.train_target_iter)
+            X = X.to(self.device)
+            E = E.to(self.device)
             y = y.to(self.device)
 
-            oreg = self.framework(V3,V4,V5)
+            oreg = self.framework(E)
             loss = self.criterion_reg(oreg, y)
 
             #start = time.time()
@@ -103,13 +102,12 @@ class Train:
         with torch.no_grad():
             for i in range(len(self.val_target_iter)):
 
-                _, V3,V4,V5, y = next(self.val_target_iter)
-                V3 = V3.to(self.device)
-                V4 = V4.to(self.device)
-                V5 = V5.to(self.device)
+                X, E, y = next(self.val_target_iter)
+                X = X.to(self.device)
+                E = E.to(self.device)
                 y = y.to(self.device)
 
-                oreg = self.framework(V3, V4, V5)
+                oreg = self.framework(E)
                 loss = self.criterion_reg(oreg, y)
                 
                 eval["predicted_value"] += oreg.cpu().detach().numpy().tolist()
@@ -129,13 +127,13 @@ class Train:
         self.framework.eval()
         with torch.no_grad():
             for i in range(len(self.test_target_iter)):
-                
-                _, V3,V4,V5, y = next(self.test_target_iter)
-                V3 = V3.to(self.device)
-                V4 = V4.to(self.device)
-                V5 = V5.to(self.device)
+
+                X, E, y = next(self.test_target_iter)
+                X = X.to(self.device)
+                E = E.to(self.device)
                 y = y.to(self.device)
-                oreg = self.framework(V3,V4,V5)
+
+                oreg = self.framework(E)
 
                 eval["predicted_value"] += oreg.cpu().detach().numpy().tolist()
                 eval["real_value"] += y.cpu().detach().numpy().tolist()
